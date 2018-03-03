@@ -1,36 +1,88 @@
 import buildUrl = require('build-url');
 import sleep = require('thread-sleep');
 import fetch from 'node-fetch';
-import { ITokenSnapshot, ITokenInfo } from '../interfaces';
+import { ITokenSnapshot, IWeb3Event, IWeb3Block, ITokenBalanceMap, ITokenBonusMap } from '../interfaces';
+import {BigNumber} from 'bignumber.js';
 
-export async function getTokenSnapshot (tokenContractAddress: string, apiUrl: string): Promise<ITokenSnapshot> {
-    const tokenSnapshot: ITokenSnapshot = {
-        dateMs: new Date().getTime(),
-        holders: []
-    };
+const Web3 = require('web3');
 
-    for (let page = 1; ; page++) {
-        const url = buildUrl(apiUrl, {
-            queryParams: {
-                refresh: 'holders',
-                data: tokenContractAddress,
-                page: encodeURIComponent(`pageSize=100&tab=tab-holders&holders=${page}`)
-            }
-        });
+export async function getTokenSnapshot (tokenContractAddress: string, tokenContractAbi: any[], tokenDecimals: number, apiUrl: string): Promise<ITokenSnapshot> {
+    const web3 = new Web3(new Web3.providers.HttpProvider(apiUrl));
+    const contract = new web3.eth.Contract(tokenContractAbi, tokenContractAddress);
+    const getPastEvents = (key: string) => contract.getPastEvents(key, {
+        fromBlock: 0,
+        toBlock: 'latest'
+    });
 
-        const response = await fetch(url);
-        const tokenInfo: ITokenInfo = await response.json();
+    const allocateEvents: IWeb3Event[] = await getPastEvents('Allocate');
+    const transferEvents: IWeb3Event[]  = await getPastEvents('Transfer');
 
-        // if we get a page which is not the page we requested,
-        // we know that we have finished fetching.
-        if (tokenInfo.pager.holders.page !== page) {
-            break;
-        }
+    const initialBalances: ITokenBalanceMap = {};
+    const curBalances: ITokenBalanceMap = {};
+    const bonusRights: ITokenBonusMap = {};
+    const addresses: string[] = [];
 
-        sleep(2000);
+    for (const allocateEvent of allocateEvents) {
+        const amount = new BigNumber(allocateEvent.returnValues._value);
+        const address = allocateEvent.returnValues._address;
 
-        tokenSnapshot.holders.push(...tokenInfo.holders);
+        curBalances[address] = amount;
+        initialBalances[address] = amount;
+
+        bonusRights[address] = true;
+        addresses.push(address);
     }
 
-    return tokenSnapshot;
+    for (const transferEvent of transferEvents) {
+        const fromAddress = transferEvent.returnValues._from;
+        const toAddress = transferEvent.returnValues._to;
+        const value = transferEvent.returnValues._value;
+
+        if (bonusRights[fromAddress]) {
+            curBalances[fromAddress] = curBalances[fromAddress].minus(value);
+            if (curBalances[fromAddress].isLessThan(initialBalances[fromAddress])) {
+                bonusRights[fromAddress] = false;
+            }
+        }
+
+        if (bonusRights[toAddress]) {
+            curBalances[toAddress] = curBalances[toAddress].plus(value);
+            if (curBalances[toAddress].isLessThan(initialBalances[toAddress])) {
+                bonusRights[toAddress] = false;
+            }
+        }
+    }
+
+    let numberOfPeopleWhoLostBonus = 0;
+    let totalLgoTokensEligibleForBonus = new BigNumber(0);
+
+    const onePercentage = 181415052000000; /* 1% of total supply */
+    const quarterBonusSupply = new BigNumber(onePercentage)
+        .multipliedBy(20) /* bonus is 20% of total supply */
+        .dividedBy(4); /* we get bonus every six months for 2 years */
+
+    for (const address of addresses) {
+        if (bonusRights[address]) {
+            totalLgoTokensEligibleForBonus = totalLgoTokensEligibleForBonus.plus(initialBalances[address]);
+        } else {
+            numberOfPeopleWhoLostBonus++;
+        }
+    }
+
+    const bonusFactor = quarterBonusSupply.toNumber() / totalLgoTokensEligibleForBonus.toNumber();
+    const eligibleBonusTokenHolders: ITokenBalanceMap = {};
+
+    for (const address of addresses) {
+        if (bonusRights[address]) {
+            const amount = (bonusFactor * initialBalances[address].toNumber()).toFixed(0);
+            eligibleBonusTokenHolders[address] = new BigNumber(amount)
+                .dividedBy(Math.pow(10, tokenDecimals));
+        }
+    }
+
+    return {
+        dateMs: new Date().getTime(),
+        eligibleBonusTokenHolders: eligibleBonusTokenHolders,
+        numberOfPeopleWhoLostBonus: numberOfPeopleWhoLostBonus
+    };
 }

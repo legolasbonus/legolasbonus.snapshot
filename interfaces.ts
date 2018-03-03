@@ -1,76 +1,84 @@
+import {BigNumber} from 'bignumber.js';
 
-export interface ITokenInfo {
-    isContract: boolean;
-    transfers?: (null)[];
-    contract: ITokenContract;
-    token: IToken;
-    pager: ITokenPager;
-    holders: ITokenHolder[];
-    ethPrice: ITokenPrice;
-    SRC: number;
-}
-export interface ITokenContract {
-    address: string;
-    creator: string;
-    hash: string;
-    timestamp: number;
-    blockNumber: number;
-    txsCount: number;
-}
-export interface IToken {
-    address: string;
-    name: string;
-    decimals: string;
-    symbol: string;
-    totalSupply: string;
-    owner: string;
-    txsCount: number;
-    transfersCount: number;
-    lastUpdated: number;
-    issuancesCount: number;
-    holdersCount: number;
-    price: ITokenPrice;
-}
-export interface ITokenPager {
-    pageSize: number;
-    holders: ITokenHoldersPager;
-}
-export interface ITokenHoldersPager {
-    page: number;
-    records: number;
-    total: number;
-}
-export interface ITokenHolder {
-    address: string;
-    balance: number;
+export interface ITokenBalanceMap {
+    [key: string]: BigNumber;
 }
 
-export interface ITokenPrice {
-    rate: string;
-    diff: number;
-    diff7d: number;
-    ts: string;
-    marketCapUsd: string;
-    availableSupply: string;
-    volume24h: string;
-    currency?: string;
+export interface ITokenBonusMap {
+    [key: string]: boolean;
 }
 
 export interface ITokenSnapshot {
     dateMs: number;
-    holders: ITokenHolder[];
+    numberOfPeopleWhoLostBonus: number;
+    eligibleBonusTokenHolders: ITokenBalanceMap;
 }
 
-export interface ILazyTokenSnapshot {
-    get: () => Promise<ITokenSnapshot>;
+export interface IWeb3EventRawData {
+    data: string;
+    topics: string[];
 }
 
-export interface IUIModelTokenHolder {
+export interface IWeb3Event {
     address: string;
-    balance: number;
+    blockHash: string;
+    blockNumber: number;
+    logIndex: number;
+    transactionHash: string;
+    transactionIndex: number;
+    transactionLogIndex: string;
+    type: string;
+    id: string;
+    returnValues: any;
+    event: string;
+    signature: string;
+    raw: IWeb3EventRawData;
 }
-export interface IUIModel {
-    dateMs: number;
-    initialTokenHoldersCount: number;
-    eligibleBonusTokenHolders: IUIModelTokenHolder[];
+
+export interface IWeb3Transaction {
+    blockHash: string;
+    blockNumber: number;
+    chainId: string;
+    condition?: any;
+    creates?: any;
+    from: string;
+    gas: number;
+    gasPrice: string;
+    hash: string;
+    input: string;
+    nonce: number;
+    publicKey: string;
+    r: string;
+    raw: string;
+    s: string;
+    standardV: string;
+    to: string;
+    transactionIndex: number;
+    v: string;
+    value: string;
+}
+
+export interface IWeb3Block {
+    author: string;
+    difficulty: string;
+    extraData: string;
+    gasLimit: number;
+    gasUsed: number;
+    hash: string;
+    logsBloom: string;
+    miner: string;
+    mixHash: string;
+    nonce: string;
+    number: number;
+    parentHash: string;
+    receiptsRoot: string;
+    sealFields: string[];
+    sha3Uncles: string;
+    size: number;
+    stateRoot: string;
+    timestamp: number;
+    totalDifficulty: string;
+    transactions: IWeb3Transaction[];
+    transactionsRoot: string;
+    uncles: any[];
 }
