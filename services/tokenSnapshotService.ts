@@ -24,13 +24,13 @@ export async function getTokenSnapshot (tokenContractAddress: string, tokenContr
     const onePercentage = 181415052000000; /* 1% of total supply */
 
     // as a temp hack;
-    // 90M tokens have not yet been allocated!
-    allocateEvents.push(<any>{
-        returnValues: {
-            _address: '0',
-            _value: new BigNumber(onePercentage).multipliedBy(20).toString() /* advisors 5% + founders 15% */
-        }
-    });
+    // advisor+founder tokens have not yet been allocated!
+    // allocateEvents.push(<any>{
+    //     returnValues: {
+    //         _address: '0',
+    //         _value: new BigNumber(onePercentage).multipliedBy(20).toString() /* advisors 5% + founders 15% */
+    //     }
+    // });
 
     for (const allocateEvent of allocateEvents) {
         const amount = new BigNumber(allocateEvent.returnValues._value);
@@ -64,8 +64,11 @@ export async function getTokenSnapshot (tokenContractAddress: string, tokenContr
     }
 
     let numberOfPeopleWhoLostBonus = 0;
+    let numberOfPeopleWhoLostBonusInLGO = new BigNumber(0);
+
     let totalLgoTokensEligibleForBonus = new BigNumber(0);
 
+    const tokenDecimalPower = Math.pow(10, tokenDecimals);
     const quarterBonusSupply = new BigNumber(onePercentage)
         .multipliedBy(20) /* bonus is 20% of total supply */
         .dividedBy(4); /* we get bonus every six months for 2 years */
@@ -75,23 +78,30 @@ export async function getTokenSnapshot (tokenContractAddress: string, tokenContr
             totalLgoTokensEligibleForBonus = totalLgoTokensEligibleForBonus.plus(initialBalances[address]);
         } else {
             numberOfPeopleWhoLostBonus++;
+            numberOfPeopleWhoLostBonusInLGO = numberOfPeopleWhoLostBonusInLGO.plus(initialBalances[address]);
         }
     }
 
     const bonusFactor = quarterBonusSupply.toNumber() / totalLgoTokensEligibleForBonus.toNumber();
-    const eligibleBonusTokenHolders: ITokenBalanceMap = {};
+    const eligibleBonusTokenHoldersNormalized: ITokenBalanceMap = {};
+    const initialBalancesNormalized: ITokenBalanceMap = {};
 
     for (const address of addresses) {
         if (bonusRights[address]) {
-            const amount = (bonusFactor * initialBalances[address].toNumber()).toFixed(0);
-            eligibleBonusTokenHolders[address] = new BigNumber(amount)
-                .dividedBy(Math.pow(10, tokenDecimals));
+            const bonusAmount = (bonusFactor * initialBalances[address].toNumber()).toFixed(0);
+            const initialBalanceAmount = initialBalances[address].toNumber().toFixed(0);
+            eligibleBonusTokenHoldersNormalized[address] = new BigNumber(bonusAmount).dividedBy(tokenDecimalPower);
+            initialBalancesNormalized[address] = new BigNumber(initialBalanceAmount).dividedBy(tokenDecimalPower);
         }
     }
 
     return {
         dateMs: new Date().getTime(),
-        eligibleBonusTokenHolders: eligibleBonusTokenHolders,
-        numberOfPeopleWhoLostBonus: numberOfPeopleWhoLostBonus
+        eligibleBonusTokenHolders: eligibleBonusTokenHoldersNormalized,
+        initialBalances: initialBalancesNormalized,
+        numberOfPeopleWhoLostBonus: numberOfPeopleWhoLostBonus,
+        numberOfPeopleWhoLostBonusInLGO: numberOfPeopleWhoLostBonusInLGO
+            .dividedBy(tokenDecimalPower)
+            .toNumber()
     };
 }

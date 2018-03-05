@@ -11,7 +11,9 @@ export interface ITokenBonusMap {
 export interface ITokenSnapshot {
     dateMs: number;
     numberOfPeopleWhoLostBonus: number;
+    numberOfPeopleWhoLostBonusInLGO: number;
     eligibleBonusTokenHolders: ITokenBalanceMap;
+    initialBalances: ITokenBalanceMap;
 }
 
 export interface IWeb3EventRawData {
