@@ -24,13 +24,13 @@ export async function getTokenSnapshot (tokenContractAddress: string, tokenContr
     const onePercentage = 181415052000000; /* 1% of total supply */
 
     // as a temp hack;
-    // advisor+founder tokens have not yet been allocated!
-    // allocateEvents.push(<any>{
-    //     returnValues: {
-    //         _address: '0',
-    //         _value: new BigNumber(onePercentage).multipliedBy(20).toString() /* advisors 5% + founders 15% */
-    //     }
-    // });
+    // advisor+founder+reserve tokens have not yet been allocated!
+    allocateEvents.push(<any>{
+        returnValues: {
+            _address: '0',
+            _value: new BigNumber(onePercentage).multipliedBy(40).toString() /* advisors 5% + founders 15%  + reserve 20%*/
+        }
+    });
 
     for (const allocateEvent of allocateEvents) {
         const amount = new BigNumber(allocateEvent.returnValues._value);
