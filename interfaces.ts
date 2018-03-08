@@ -12,6 +12,10 @@ export interface ITokenSnapshot {
     dateMs: number;
     numberOfPeopleWhoLostBonus: number;
     numberOfPeopleWhoLostBonusInLGO: number;
+
+    numberOfPeopleWhoHaveBonus: number,
+    numberOfPeopleWhoParticipatedInICO: number, 
+
     eligibleBonusTokenHolders: ITokenBalanceMap;
     initialBalances: ITokenBalanceMap;
 }

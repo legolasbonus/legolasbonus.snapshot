@@ -23,15 +23,6 @@ export async function getTokenSnapshot (tokenContractAddress: string, tokenContr
     const addresses: string[] = [];
     const onePercentage = 181415052000000; /* 1% of total supply */
 
-    // as a temp hack;
-    // advisor+founder+reserve tokens have not yet been allocated!
-    allocateEvents.push(<any>{
-        returnValues: {
-            _address: '0',
-            _value: new BigNumber(onePercentage).multipliedBy(40).toString() /* advisors 5% + founders 15%  + reserve 20%*/
-        }
-    });
-
     for (const allocateEvent of allocateEvents) {
         const amount = new BigNumber(allocateEvent.returnValues._value);
         const address = allocateEvent.returnValues._address.toLowerCase();
@@ -64,9 +55,9 @@ export async function getTokenSnapshot (tokenContractAddress: string, tokenContr
     }
 
     let numberOfPeopleWhoLostBonus = 0;
+    let numberOfPeopleWhoHaveBonus = 0;
     let numberOfPeopleWhoLostBonusInLGO = new BigNumber(0);
-
-    let totalLgoTokensEligibleForBonus = new BigNumber(0);
+    let numberOfPeopleWhoParticipatedInICO = 0;
 
     const tokenDecimalPower = Math.pow(10, tokenDecimals);
     const quarterBonusSupply = new BigNumber(onePercentage)
@@ -75,12 +66,18 @@ export async function getTokenSnapshot (tokenContractAddress: string, tokenContr
 
     for (const address of addresses) {
         if (bonusRights[address]) {
-            totalLgoTokensEligibleForBonus = totalLgoTokensEligibleForBonus.plus(initialBalances[address]);
+            numberOfPeopleWhoHaveBonus++;
         } else {
             numberOfPeopleWhoLostBonus++;
             numberOfPeopleWhoLostBonusInLGO = numberOfPeopleWhoLostBonusInLGO.plus(initialBalances[address]);
         }
+
+        numberOfPeopleWhoParticipatedInICO++;
     }
+
+    const totalLgoTokensEligibleForBonus = new BigNumber(onePercentage)
+        .multipliedBy(100)
+        .minus(numberOfPeopleWhoLostBonusInLGO);
 
     const bonusFactor = quarterBonusSupply.toNumber() / totalLgoTokensEligibleForBonus.toNumber();
     const eligibleBonusTokenHoldersNormalized: ITokenBalanceMap = {};
@@ -99,6 +96,8 @@ export async function getTokenSnapshot (tokenContractAddress: string, tokenContr
         dateMs: new Date().getTime(),
         eligibleBonusTokenHolders: eligibleBonusTokenHoldersNormalized,
         initialBalances: initialBalancesNormalized,
+        numberOfPeopleWhoHaveBonus: numberOfPeopleWhoHaveBonus,
+        numberOfPeopleWhoParticipatedInICO: numberOfPeopleWhoParticipatedInICO, 
         numberOfPeopleWhoLostBonus: numberOfPeopleWhoLostBonus,
         numberOfPeopleWhoLostBonusInLGO: numberOfPeopleWhoLostBonusInLGO
             .dividedBy(tokenDecimalPower)
